@@ -42,7 +42,7 @@ const elements = {
     theme: document.querySelector("[data-settings-theme]"),
     cancel: document.querySelector("[data-settings-cancel]"),
   },
-}; //Abstraction, grouping based on functionality 
+}; 
 
 //Displays books
 const fragment = document.createDocumentFragment();
@@ -138,53 +138,77 @@ function handleCloseButtonClick() {
 
 elements.list.items.addEventListener("click", handleListItemClick);
 elements.list.close.addEventListener("click", handleCloseButtonClick);
-//Abstraction adding event handlers into functions
 
 //Search
-
-elements.search.header.addEventListener("click", () => {
+function handleHeaderClick () {
   elements.search.overlay.showModal();
   elements.search.title.focus();
-});
+}
+
+elements.search.header.addEventListener("click", handleHeaderClick)
 
 //Populate Genres on Search
-const genresFragment = document.createDocumentFragment();
-const genreElement = document.createElement("option");
-genreElement.value = "any";
-genreElement.innerText = "All Genres";
-genresFragment.appendChild(genreElement);
 
-for (const [id, genre] of Object.entries(genres)) {
-  const genreElement = document.createElement("option");
-  genreElement.value = id;
-  genreElement.innerText = genre;
-  genresFragment.appendChild(genreElement);
+function populateGenres() {
+  const genresFragment = document.createDocumentFragment();
+  const allGenresElement = createGenreOption("any", "All Genres");
+  genresFragment.appendChild(allGenresElement);
+
+  for (const [id, genre] of Object.entries(genres)) {
+    const genreElement = createGenreOption(id, genre);
+    genresFragment.appendChild(genreElement);
+  }
+  elements.search.genres.appendChild(genresFragment);
 }
 
-elements.search.genres.appendChild(genresFragment);
+function createGenreOption(value, text) {
+  const genreElement = document.createElement("option");
+  genreElement.value = value;
+  genreElement.innerText = text;
+  return genreElement;
+}
+
+populateGenres();
+
 
 //Populate Authors on Search
-const authorsFragment = document.createDocumentFragment();
-const authorsElement = document.createElement("option");
-authorsElement.value = "any";
-authorsElement.innerText = "All Authors";
-authorsFragment.appendChild(authorsElement);
+function populateAuthors() {
+  const authorsFragment = document.createDocumentFragment();
 
-for (const [id, author] of Object.entries(authors)) {
-  const authorsElement = document.createElement("option");
-  authorsElement.value = id;
-  authorsElement.innerText = author;
-  authorsFragment.appendChild(authorsElement);
+  const allAuthorsElement = createAuthorOption("any", "All Authors");
+  authorsFragment.appendChild(allAuthorsElement);
+
+  for (const [id, author] of Object.entries(authors)) {
+    const authorElement = createAuthorOption(id, author);
+    authorsFragment.appendChild(authorElement);
+  }
+
+  elements.search.authors.appendChild(authorsFragment);
 }
 
-elements.search.authors.appendChild(authorsFragment);
+function createAuthorOption(value, text) {
+  const authorElement = document.createElement("option");
+  authorElement.value = value;
+  authorElement.innerText = text;
+  return authorElement;
+}
+
+populateAuthors();
+
 
 //Search More
-elements.search.form.addEventListener("submit", (event) => {
+
+elements.search.form.addEventListener("submit", handleFormSubmission);
+function handleFormSubmission(event) {
   event.preventDefault();
   const getData = new FormData(event.target);
   const filters = Object.fromEntries(getData);
-  const result = [];
+  const result = filterBooks(filters);
+  updateBookList(result);
+}
+
+function filterBooks(filters) {
+  const filteredBooks = [];
 
   for (const book of books) {
     const titleMatch =
@@ -200,41 +224,57 @@ elements.search.form.addEventListener("submit", (event) => {
         .toLocaleLowerCase()
         .includes(filters.author.toLocaleLowerCase());
     if (titleMatch || authorMatch || genreMatch) {
-      result.push(book);
+      filteredBooks.push(book);
     }
   }
 
+  return filteredBooks;
+}
+
+function updateBookList(result) {
   if (result.length === 0) {
-    elements.list.items.innerHTML = "";
-    elements.list.button.disabled = true;
-    elements.list.message.classList.add("list__message_show");
+    clearBookList();
   } else {
-    elements.list.message.classList.remove("list__message_show");
-    elements.list.items.innerHTML = "";
+    clearBookList();
     const searchStartIndex = (page - 1) * BOOKS_PER_PAGE;
     const searchEndIndex = searchStartIndex + BOOKS_PER_PAGE;
-    const searchBookFragment = document.createDocumentFragment();
     const searchBookExtracted = result.slice(searchStartIndex, searchEndIndex);
-    for (const preview of searchBookExtracted) {
-      const showPreview = createPreview(preview);
-      searchBookFragment.appendChild(showPreview);
-    }
+    const searchBookFragment = createBookPreviewFragment(searchBookExtracted);
     elements.list.items.appendChild(searchBookFragment);
+    const remainingBooks = result.length - page * BOOKS_PER_PAGE;
+    elements.list.button.disabled = remainingBooks <= 0;
   }
-  const remainingBooks = result.length - page * BOOKS_PER_PAGE;
-  elements.list.button.disabled = remainingBooks <= 0;
+
+  resetFormAndOverlay();
+}
+
+function createBookPreviewFragment(bookArray) {
+  const searchBookFragment = document.createDocumentFragment();
+  for (const preview of bookArray) {
+    const showPreview = createPreview(preview);
+    searchBookFragment.appendChild(showPreview);
+  }
+
+  return searchBookFragment;
+}
+
+function clearBookList() {
+  elements.list.items.innerHTML = "";
+  elements.list.button.disabled = true;
+  elements.list.message.classList.add("list__message_show");
+}
+
+function resetFormAndOverlay() {
   elements.search.overlay.close();
   elements.search.form.reset();
+}
 
-  elements.search.cancel.addEventListener("click", () => {
-    elements.search.overlay.close();
-  });
+elements.search.cancel.addEventListener("click", () => {
+  elements.search.overlay.close();
 });
 
+
 //Night & Day Theme
-/* Abstraction by creating three function to encapsulate the actions (Open settings, apply the theme, 
-  close the settings), Added day & night properties to a single variable called theme. 
-*/
 
 const theme = {
   day: {
